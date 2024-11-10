@@ -22,6 +22,8 @@ repository = "https://github.com/a-kenji/tui-term"
 autoexamples = true
 rust-version = "1.74.0"
 
+[lib]
+crate-type = ["lib", "cdylib"]
 
 keywords = ["tui", "terminal", "ratatui", "tty", "multiplexer"]
 
