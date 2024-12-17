@@ -155,33 +155,33 @@ async fn run<B: Backend>(
                             KeyCode::Down => {
                                 sender.send(Bytes::from(vec![27, 91, 66])).await.unwrap()
                             }
-                            KeyCode::Home => todo!(),
-                            KeyCode::End => todo!(),
-                            KeyCode::PageUp => todo!(),
-                            KeyCode::PageDown => todo!(),
-                            KeyCode::Tab => todo!(),
-                            KeyCode::BackTab => todo!(),
-                            KeyCode::Delete => todo!(),
-                            KeyCode::Insert => todo!(),
-                            KeyCode::F(_) => todo!(),
-                            KeyCode::Null => todo!(),
-                            KeyCode::Esc => todo!(),
-                            KeyCode::CapsLock => todo!(),
-                            KeyCode::ScrollLock => todo!(),
-                            KeyCode::NumLock => todo!(),
-                            KeyCode::PrintScreen => todo!(),
-                            KeyCode::Pause => todo!(),
-                            KeyCode::Menu => todo!(),
-                            KeyCode::KeypadBegin => todo!(),
-                            KeyCode::Media(_) => todo!(),
-                            KeyCode::Modifier(_) => todo!(),
+                            KeyCode::Home => {}
+                            KeyCode::End => {}
+                            KeyCode::PageUp => sender.send(Bytes::from(vec![27, 91, 53,126])).await.unwrap(),
+                            KeyCode::PageDown => sender.send(Bytes::from(vec![27, 91, 54,126])).await.unwrap(),
+                            KeyCode::Tab => sender.send(Bytes::from(vec![9])).await.unwrap(),
+                            KeyCode::BackTab => {}
+                            KeyCode::Delete => {}
+                            KeyCode::Insert => {}
+                            KeyCode::F(_) => {}
+                            KeyCode::Null => {}
+                            KeyCode::Esc => {}
+                            KeyCode::CapsLock => {}
+                            KeyCode::ScrollLock => {}
+                            KeyCode::NumLock => {}
+                            KeyCode::PrintScreen => {}
+                            KeyCode::Pause => {}
+                            KeyCode::Menu => {}
+                            KeyCode::KeypadBegin => {}
+                            KeyCode::Media(_) => {}
+                            KeyCode::Modifier(_) => {}
                         }
                     }
                 }
                 Event::FocusGained => {}
                 Event::FocusLost => {}
                 Event::Mouse(_) => {}
-                Event::Paste(_) => todo!(),
+                Event::Paste(_) => {}
                 Event::Resize(cols, rows) => {
                     parser.write().unwrap().set_size(rows, cols);
                 }
@@ -211,13 +211,11 @@ fn ui(f: &mut Frame, screen: &Screen) {
         .alignment(Alignment::Center);
     f.render_widget(header, chunks[0]);
 
-
     let block = Block::default()
         .borders(Borders::NONE)
         .style(Style::default().add_modifier(Modifier::BOLD));
     let pseudo_term = PseudoTerminal::new(screen).block(block);
     f.render_widget(pseudo_term, chunks[1]);
-
 
     //footer
     let explanation = "Press q to exit".to_string();
@@ -225,6 +223,4 @@ fn ui(f: &mut Frame, screen: &Screen) {
         .style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
         .alignment(Alignment::Center);
     f.render_widget(explanation, chunks[2]);
-
-
 }
