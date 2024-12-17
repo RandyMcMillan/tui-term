@@ -68,7 +68,11 @@ async fn main() -> io::Result<()> {
     });
 
     let mut reader = pair.master.try_clone_reader().unwrap();
-    let parser = Arc::new(RwLock::new(vt100::Parser::new(size.rows, size.cols, 0)));
+    let parser = Arc::new(RwLock::new(vt100::Parser::new(
+        size.rows - 4,
+        size.cols,
+        0,
+    )));
 
     {
         let parser = parser.clone();
@@ -157,8 +161,14 @@ async fn run<B: Backend>(
                             }
                             KeyCode::Home => {}
                             KeyCode::End => {}
-                            KeyCode::PageUp => sender.send(Bytes::from(vec![27, 91, 53,126])).await.unwrap(),
-                            KeyCode::PageDown => sender.send(Bytes::from(vec![27, 91, 54,126])).await.unwrap(),
+                            KeyCode::PageUp => sender
+                                .send(Bytes::from(vec![27, 91, 53, 126]))
+                                .await
+                                .unwrap(),
+                            KeyCode::PageDown => sender
+                                .send(Bytes::from(vec![27, 91, 54, 126]))
+                                .await
+                                .unwrap(),
                             KeyCode::Tab => sender.send(Bytes::from(vec![9])).await.unwrap(),
                             KeyCode::BackTab => {}
                             KeyCode::Delete => {}
@@ -196,9 +206,9 @@ fn ui(f: &mut Frame, screen: &Screen) {
         .margin(1)
         .constraints(
             [
-                ratatui::layout::Constraint::Min(1),
-                ratatui::layout::Constraint::Percentage(100),
-                ratatui::layout::Constraint::Min(1),
+                ratatui::layout::Constraint::Percentage(2),
+                ratatui::layout::Constraint::Percentage(96),
+                ratatui::layout::Constraint::Percentage(2),
             ]
             .as_ref(),
         )
