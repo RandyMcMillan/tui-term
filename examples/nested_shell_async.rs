@@ -133,6 +133,7 @@ async fn run<B: Backend>(
                 Event::Key(key) => {
                     if key.kind == KeyEventKind::Press {
                         match key.code {
+                            KeyCode::Char('\\') => return Ok(()),
                             KeyCode::Char('q') => return Ok(()),
                             KeyCode::Char(input) => sender
                                 .send(Bytes::from(input.to_string().into_bytes()))
@@ -195,20 +196,35 @@ fn ui(f: &mut Frame, screen: &Screen) {
         .margin(1)
         .constraints(
             [
+                ratatui::layout::Constraint::Min(1),
                 ratatui::layout::Constraint::Percentage(100),
                 ratatui::layout::Constraint::Min(1),
             ]
             .as_ref(),
         )
         .split(f.area());
+
+    //header
+    let header = "Press q to exit".to_string();
+    let header = Paragraph::new(header)
+        .style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
+        .alignment(Alignment::Center);
+    f.render_widget(header, chunks[0]);
+
+
     let block = Block::default()
-        .borders(Borders::ALL)
+        .borders(Borders::NONE)
         .style(Style::default().add_modifier(Modifier::BOLD));
     let pseudo_term = PseudoTerminal::new(screen).block(block);
-    f.render_widget(pseudo_term, chunks[0]);
+    f.render_widget(pseudo_term, chunks[1]);
+
+
+    //footer
     let explanation = "Press q to exit".to_string();
     let explanation = Paragraph::new(explanation)
         .style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
         .alignment(Alignment::Center);
-    f.render_widget(explanation, chunks[1]);
+    f.render_widget(explanation, chunks[2]);
+
+
 }
