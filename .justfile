@@ -50,13 +50,13 @@ lint:
     nix flake check
 
 run:
-    cargo run
+    cargo run --bin gnostr-term --features unstable
 
 build:
-    cargo build
+    cargo build --bins --features unstable
 
 run-release:
-    cargo run --release
+    cargo run --release --bin gnostr-term --features unstable
 
 doc:
     cargo doc --open --offline
