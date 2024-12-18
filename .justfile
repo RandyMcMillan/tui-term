@@ -61,6 +61,9 @@ run:
 build:
     cargo build --bins --features unstable
 
+build-examples:
+    cargo build --examples --features unstable
+
 run-release:
     cargo run --release --bin gnostr-term --features unstable
 
