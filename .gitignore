@@ -24,3 +24,5 @@ tarpaulin-report.html
 
 /result
 /.direnv/*
+.nvmrc
+.gnostr/proxy
