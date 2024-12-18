@@ -69,7 +69,7 @@ async fn main() -> io::Result<()> {
 
     let mut reader = pair.master.try_clone_reader().unwrap();
     let parser = Arc::new(RwLock::new(vt100::Parser::new(
-        size.rows - 4,
+        size.rows - 5,
         size.cols,
         0,
     )));
@@ -138,7 +138,7 @@ async fn run<B: Backend>(
                     if key.kind == KeyEventKind::Press {
                         match key.code {
                             KeyCode::Char('\\') => return Ok(()),
-                            KeyCode::Char('q') => return Ok(()),
+                            //KeyCode::Char('q') => return Ok(()),
                             KeyCode::Char(input) => sender
                                 .send(Bytes::from(input.to_string().into_bytes()))
                                 .await
@@ -206,16 +206,16 @@ fn ui(f: &mut Frame, screen: &Screen) {
         .margin(1)
         .constraints(
             [
-                ratatui::layout::Constraint::Percentage(2),
+                ratatui::layout::Constraint::Min(1),
                 ratatui::layout::Constraint::Percentage(96),
-                ratatui::layout::Constraint::Percentage(2),
+                ratatui::layout::Constraint::Min(1),
             ]
             .as_ref(),
         )
         .split(f.area());
 
     //header
-    let header = "Press q to exit".to_string();
+    let header = "Press \\ to exit".to_string();
     let header = Paragraph::new(header)
         .style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
         .alignment(Alignment::Center);
@@ -228,7 +228,7 @@ fn ui(f: &mut Frame, screen: &Screen) {
     f.render_widget(pseudo_term, chunks[1]);
 
     //footer
-    let explanation = "Press q to exit".to_string();
+    let explanation = "Press \\ to exit".to_string();
     let explanation = Paragraph::new(explanation)
         .style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
         .alignment(Alignment::Center);
