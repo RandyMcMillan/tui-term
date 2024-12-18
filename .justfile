@@ -20,8 +20,12 @@ actionlint:
 deny:
     cargo deny check
 
-cargo-test:
-    cargo test
+cargo-test:cargo-test-all-features cargo-test-features-unstable
+cargo-test-all-features:
+    cargo test --all-features
+
+cargo-test-features-unstable:
+    cargo test --features unstable
 
 cargo-diet:
     nix develop .#lintShell --command cargo diet
