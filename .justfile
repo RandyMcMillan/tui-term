@@ -11,6 +11,12 @@ alias cw := cargo-watch
 default:
     @just --choose
 
+gnostr-proxy-install:
+    @cargo install --bin gnostr-proxy --features unstable --path .
+
+gnostr-proxy-run:
+    @cargo run --bin gnostr-proxy --features unstable
+
 clippy:
     cargo clippy --all-targets --all-features
 
