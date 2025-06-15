@@ -6,7 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
+    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute,
     style::ResetColor,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -122,6 +122,7 @@ async fn main() -> io::Result<()> {
     terminal.show_cursor()?;
     println!("{size:?}");
     std::process::exit(0);
+    #[allow(unreachable_code)]
     Ok(())
 }
 
@@ -144,17 +145,47 @@ async fn run<B: Backend>(
                             // --- Quit Keys ---
                             KeyCode::Char('\\') => return Ok(()),
                             KeyCode::Char('q') => return Ok(()),
-                            KeyCode::Esc => return Ok(()), // Also a common quit key
+                            KeyCode::Esc => {
+                                sender.send(Bytes::from(vec![27])).await.unwrap();
+                            }/*return Ok(())*/, // Also a common quit key
 
-                            // --- Character and Control Keys ---
-                            KeyCode::Char(input) => sender
-                                .send(Bytes::from(input.to_string().into_bytes()))
-                                .await
-                                .unwrap(),
+
+
+      KeyCode::Char(input) => {
+                                let bytes_to_send = if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                    match input {
+                                        // Special handling for Ctrl+C
+                                        'c' | 'C' => Bytes::from(vec![3]), // ASCII ETX
+                                        // You can add more Ctrl+char combinations here if needed.
+                                        // For example, Ctrl+D is 4 (EOT), Ctrl+Z is 26 (SUB).
+                                        // 'd' | 'D' => Bytes::from(vec![4]),
+                                        // 'z' | 'Z' => Bytes::from(vec![26]),
+                                        _ => {
+                                            // Fallback for other Ctrl+char combinations:
+                                            // Convert to uppercase, then subtract 64 (ASCII for '@')
+                                            let ascii_val = input.to_ascii_uppercase() as u8;
+                                            if (64..=95).contains(&ascii_val) { // Covers A-Z, [, \, ], ^, _
+                                                Bytes::from(vec![ascii_val - 64])
+                                            } else {
+                                                // If it's a Ctrl+char not in the A-Z range or a special case,
+                                                // you might still want to send the raw char bytes or ignore.
+                                                // Sending raw char bytes means the remote might not interpret it as Ctrl.
+                                                // For robustness, consider if you truly need to send every Ctrl+char.
+                                                Bytes::from(input.to_string().into_bytes())
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // No Ctrl modifier, send the character directly
+                                    Bytes::from(input.to_string().into_bytes())
+                                };
+                                sender.send(bytes_to_send).await.unwrap();
+                            }
+
                             KeyCode::Backspace => {
                                 sender.send(Bytes::from(vec![8])).await.unwrap();
                             }
-                            KeyCode::Enter => sender.send(Bytes::from(vec![b'\n'])).await.unwrap(),
+                            KeyCode::Enter => sender.send(Bytes::from(vec![10])).await.unwrap(),
                             KeyCode::Tab => sender.send(Bytes::from(vec![9])).await.unwrap(),
                             // BackTab is Shift+Tab, often sent as ESC[Z
                             KeyCode::BackTab => {
@@ -249,10 +280,18 @@ async fn run<B: Backend>(
                         }
                     }
                 }
-                Event::FocusGained => {}
-                Event::FocusLost => {}
-                Event::Mouse(_) => {}
-                Event::Paste(_) => {}
+                Event::FocusGained => {
+                    println!("Event::FocusedGained!!!")
+                }
+                Event::FocusLost => {
+                    println!("Event::FocusedLost!!!")
+                }
+                Event::Mouse(_) => {
+                    println!("Event::Mouse!!!")
+                }
+                Event::Paste(_) => {
+                    println!("Event::Paste!!!")
+                }
                 Event::Resize(cols, rows) => {
                     // Update the parser with the new terminal size
                     parser.write().unwrap().set_size(rows, cols);
