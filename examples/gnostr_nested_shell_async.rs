@@ -6,7 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
+    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     execute,
     style::ResetColor,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -149,11 +149,39 @@ async fn run<B: Backend>(
                                 sender.send(Bytes::from(vec![27])).await.unwrap();
                             }/*return Ok(())*/, // Also a common quit key
 
-                            // --- Character and Control Keys ---
-                            KeyCode::Char(input) => sender
-                                .send(Bytes::from(input.to_string().into_bytes()))
-                                .await
-                                .unwrap(),
+
+
+      KeyCode::Char(input) => {
+                                let bytes_to_send = if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                    match input {
+                                        // Special handling for Ctrl+C
+                                        'c' | 'C' => Bytes::from(vec![3]), // ASCII ETX
+                                        // You can add more Ctrl+char combinations here if needed.
+                                        // For example, Ctrl+D is 4 (EOT), Ctrl+Z is 26 (SUB).
+                                        // 'd' | 'D' => Bytes::from(vec![4]),
+                                        // 'z' | 'Z' => Bytes::from(vec![26]),
+                                        _ => {
+                                            // Fallback for other Ctrl+char combinations:
+                                            // Convert to uppercase, then subtract 64 (ASCII for '@')
+                                            let ascii_val = input.to_ascii_uppercase() as u8;
+                                            if (64..=95).contains(&ascii_val) { // Covers A-Z, [, \, ], ^, _
+                                                Bytes::from(vec![ascii_val - 64])
+                                            } else {
+                                                // If it's a Ctrl+char not in the A-Z range or a special case,
+                                                // you might still want to send the raw char bytes or ignore.
+                                                // Sending raw char bytes means the remote might not interpret it as Ctrl.
+                                                // For robustness, consider if you truly need to send every Ctrl+char.
+                                                Bytes::from(input.to_string().into_bytes())
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // No Ctrl modifier, send the character directly
+                                    Bytes::from(input.to_string().into_bytes())
+                                };
+                                sender.send(bytes_to_send).await.unwrap();
+                            }
+
                             KeyCode::Backspace => {
                                 sender.send(Bytes::from(vec![8])).await.unwrap();
                             }
