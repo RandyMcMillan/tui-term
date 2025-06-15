@@ -11,7 +11,6 @@ use crossterm::{
     style::ResetColor,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-#[cfg(feature = "unstable")]
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use ratatui::{
     backend::{Backend, CrosstermBackend},
@@ -43,9 +42,11 @@ async fn main() -> io::Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    //BEGIN: gnostr child process
     let pty_system = NativePtySystem::default();
     let cwd = std::env::current_dir().unwrap();
-    let mut cmd = CommandBuilder::new_default_prog();
+    //let mut cmd = CommandBuilder::new_default_prog();
+    let mut cmd = CommandBuilder::new("gnostr");
     cmd.cwd(cwd);
 
     let size = Size {
@@ -107,14 +108,21 @@ async fn main() -> io::Result<()> {
         }
         drop(pair.master);
     });
+    //END: gnostr child process
 
     run(&mut terminal, parser, tx).await?;
 
     // restore terminal
     disable_raw_mode()?;
+    //twice for child process
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
     terminal.show_cursor()?;
+    terminal.show_cursor()?;
     println!("{size:?}");
+    std::process::exit(0);
+    #[allow(unreachable_code)]
     Ok(())
 }
 
@@ -126,16 +134,22 @@ async fn run<B: Backend>(
     loop {
         terminal.draw(|f| ui(f, parser.read().unwrap().screen()))?;
 
-        // Event read is non-blocking
+        // Event read is non-blocking with a 10ms timeout
         if event::poll(Duration::from_millis(10))? {
-            // It's guaranteed that the `read()` won't block when the `poll()`
-            // function returns `true`
+            // It's guaranteed that `read()` won't block when `poll()` returns `true`
             match event::read()? {
                 Event::Key(key) => {
+                    // We only handle key press events, not releases
                     if key.kind == KeyEventKind::Press {
                         match key.code {
+                            // --- Quit Keys ---
                             KeyCode::Char('\\') => return Ok(()),
-                            //KeyCode::Char('q') => return Ok(()),
+                            KeyCode::Char('q') => return Ok(()),
+                            KeyCode::Esc => {
+                                sender.send(Bytes::from(vec![27])).await.unwrap();
+                            }/*return Ok(())*/, // Also a common quit key
+
+                            // --- Character and Control Keys ---
                             KeyCode::Char(input) => sender
                                 .send(Bytes::from(input.to_string().into_bytes()))
                                 .await
@@ -143,7 +157,14 @@ async fn run<B: Backend>(
                             KeyCode::Backspace => {
                                 sender.send(Bytes::from(vec![8])).await.unwrap();
                             }
-                            KeyCode::Enter => sender.send(Bytes::from(vec![b'\n'])).await.unwrap(),
+                            KeyCode::Enter => sender.send(Bytes::from(vec![10])).await.unwrap(),
+                            KeyCode::Tab => sender.send(Bytes::from(vec![9])).await.unwrap(),
+                            // BackTab is Shift+Tab, often sent as ESC[Z
+                            KeyCode::BackTab => {
+                                sender.send(Bytes::from(vec![27, 91, 90])).await.unwrap()
+                            }
+
+                            // --- Arrow Keys ---
                             KeyCode::Left => {
                                 sender.send(Bytes::from(vec![27, 91, 68])).await.unwrap()
                             }
@@ -156,23 +177,69 @@ async fn run<B: Backend>(
                             KeyCode::Down => {
                                 sender.send(Bytes::from(vec![27, 91, 66])).await.unwrap()
                             }
-                            KeyCode::Home => {}
-                            KeyCode::End => {}
-                            KeyCode::PageUp => sender
-                                .send(Bytes::from(vec![27, 91, 53, 126]))
-                                .await
-                                .unwrap(),
-                            KeyCode::PageDown => sender
-                                .send(Bytes::from(vec![27, 91, 54, 126]))
-                                .await
-                                .unwrap(),
-                            KeyCode::Tab => sender.send(Bytes::from(vec![9])).await.unwrap(),
-                            KeyCode::BackTab => {}
-                            KeyCode::Delete => {}
-                            KeyCode::Insert => {}
-                            KeyCode::F(_) => {}
-                            KeyCode::Null => {}
-                            KeyCode::Esc => {}
+
+                            // --- Navigation and Edit Keys (using common xterm/VT sequences) ---
+                            KeyCode::Home => {
+                                sender.send(Bytes::from(vec![27, 91, 72])).await.unwrap()
+                                // ESC[H
+                            }
+                            KeyCode::End => {
+                                sender.send(Bytes::from(vec![27, 91, 70])).await.unwrap()
+                                // ESC[F
+                            }
+                            KeyCode::PageUp => {
+                                sender
+                                    .send(Bytes::from(vec![27, 91, 53, 126]))
+                                    .await
+                                    .unwrap() // ESC[5~
+                            }
+                            KeyCode::PageDown => {
+                                sender
+                                    .send(Bytes::from(vec![27, 91, 54, 126]))
+                                    .await
+                                    .unwrap() // ESC[6~
+                            }
+                            KeyCode::Delete => {
+                                sender
+                                    .send(Bytes::from(vec![27, 91, 51, 126]))
+                                    .await
+                                    .unwrap() // ESC[3~
+                            }
+                            KeyCode::Insert => {
+                                sender
+                                    .send(Bytes::from(vec![27, 91, 50, 126]))
+                                    .await
+                                    .unwrap() // ESC[2~
+                            }
+
+                            // --- Function Keys ---
+                            KeyCode::F(n) => {
+                                let seq = match n {
+                                    1 => vec![27, 79, 80],           // \x1bOP
+                                    2 => vec![27, 79, 81],           // \x1bOQ
+                                    3 => vec![27, 79, 82],           // \x1bOR
+                                    4 => vec![27, 79, 83],           // \x1bOS
+                                    5 => vec![27, 91, 49, 53, 126],  // \x1b[15~
+                                    6 => vec![27, 91, 49, 55, 126],  // \x1b[17~
+                                    7 => vec![27, 91, 49, 56, 126],  // \x1b[18~
+                                    8 => vec![27, 91, 49, 57, 126],  // \x1b[19~
+                                    9 => vec![27, 91, 50, 48, 126],  // \x1b[20~
+                                    10 => vec![27, 91, 50, 49, 126], // \x1b[21~
+                                    11 => vec![27, 91, 50, 51, 126], // \x1b[23~
+                                    12 => vec![27, 91, 50, 52, 126], // \x1b[24~
+                                    _ => vec![],                     // F13+ are less common
+                                };
+                                if !seq.is_empty() {
+                                    sender.send(Bytes::from(seq)).await.unwrap();
+                                }
+                            }
+
+                            // --- Other Keys ---
+                            KeyCode::Null => {
+                                sender.send(Bytes::from(vec![0])).await.unwrap();
+                            }
+
+                            // --- Keys that typically don't send sequences are ignored ---
                             KeyCode::CapsLock => {}
                             KeyCode::ScrollLock => {}
                             KeyCode::NumLock => {}
@@ -185,11 +252,20 @@ async fn run<B: Backend>(
                         }
                     }
                 }
-                Event::FocusGained => {}
-                Event::FocusLost => {}
-                Event::Mouse(_) => {}
-                Event::Paste(_) => {}
+                Event::FocusGained => {
+                    println!("Event::FocusedGained!!!")
+                }
+                Event::FocusLost => {
+                    println!("Event::FocusedLost!!!")
+                }
+                Event::Mouse(_) => {
+                    println!("Event::Mouse!!!")
+                }
+                Event::Paste(_) => {
+                    println!("Event::Paste!!!")
+                }
                 Event::Resize(cols, rows) => {
+                    // Update the parser with the new terminal size
                     parser.write().unwrap().set_size(rows, cols);
                 }
             }
