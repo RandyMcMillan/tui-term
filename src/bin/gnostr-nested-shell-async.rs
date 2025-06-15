@@ -112,17 +112,20 @@ async fn main() -> io::Result<()> {
 
     run(&mut terminal, parser, tx).await?;
 
-    // restore terminal
-    disable_raw_mode()?;
-    //twice for child process
+    restore_term(&mut terminal).await?;
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
-    terminal.show_cursor()?;
     terminal.show_cursor()?;
     println!("{size:?}");
     std::process::exit(0);
     #[allow(unreachable_code)]
+    Ok(())
+}
+
+async fn restore_term<B: Backend>(terminal: &mut Terminal<B>) -> io::Result<()> {
+    disable_raw_mode()?;
+    terminal.show_cursor()?;
+    //println!("{size:?}");
     Ok(())
 }
 
@@ -143,17 +146,24 @@ async fn run<B: Backend>(
                     if key.kind == KeyEventKind::Press {
                         match key.code {
                             // --- Quit Keys ---
-                            KeyCode::Char('\\') => return Ok(()),
+                            KeyCode::Char('\\') => {
+                                //std::process::exit(0);
+                                return Ok(())
+                            }
                             //WE DISABLE q: for gnostr editor mode such as in vim :q
                             //KeyCode::Char('q') => return Ok(()),
                             KeyCode::Esc => {
                                 sender.send(Bytes::from(vec![27])).await.unwrap();
-                            }/*return Ok(())*/, // Also a common quit key
+                            } /*return Ok(())*/, // Also a common quit key
                             KeyCode::Char(input) => {
-                                let bytes_to_send = if key.modifiers.contains(KeyModifiers::CONTROL) {
+                                let bytes_to_send = if key.modifiers.contains(KeyModifiers::CONTROL)
+                                {
                                     match input {
                                         // Special handling for Ctrl+C
-                                        'c' | 'C' => Bytes::from(vec![3]), // ASCII ETX
+                                        'c' | 'C' => {
+                                            std::process::exit(0);
+                                            /*Bytes::from(vec![3])*/
+                                        } // ASCII ETX
                                         // You can add more Ctrl+char combinations here if needed.
                                         // For example, Ctrl+D is 4 (EOT), Ctrl+Z is 26 (SUB).
                                         // 'd' | 'D' => Bytes::from(vec![4]),
@@ -162,7 +172,8 @@ async fn run<B: Backend>(
                                             // Fallback for other Ctrl+char combinations:
                                             // Convert to uppercase, then subtract 64 (ASCII for '@')
                                             let ascii_val = input.to_ascii_uppercase() as u8;
-                                            if (64..=95).contains(&ascii_val) { // Covers A-Z, [, \, ], ^, _
+                                            if (64..=95).contains(&ascii_val) {
+                                                // Covers A-Z, [, \, ], ^, _
                                                 Bytes::from(vec![ascii_val - 64])
                                             } else {
                                                 // If it's a Ctrl+char not in the A-Z range or a special case,
