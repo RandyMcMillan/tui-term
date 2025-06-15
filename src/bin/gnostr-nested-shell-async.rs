@@ -144,14 +144,12 @@ async fn run<B: Backend>(
                         match key.code {
                             // --- Quit Keys ---
                             KeyCode::Char('\\') => return Ok(()),
-                            KeyCode::Char('q') => return Ok(()),
+                            //WE DISABLE q: for gnostr editor mode such as in vim :q
+                            //KeyCode::Char('q') => return Ok(()),
                             KeyCode::Esc => {
                                 sender.send(Bytes::from(vec![27])).await.unwrap();
                             }/*return Ok(())*/, // Also a common quit key
-
-
-
-      KeyCode::Char(input) => {
+                            KeyCode::Char(input) => {
                                 let bytes_to_send = if key.modifiers.contains(KeyModifiers::CONTROL) {
                                     match input {
                                         // Special handling for Ctrl+C
